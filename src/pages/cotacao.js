@@ -1,27 +1,87 @@
+import { useState } from 'react';
 import useSWR from 'swr';
 import { fetcher } from '../lib/fetcher';
 
-export default function Home() {
-  const { data, error, isLoading } = useSWR(
-    'https://economia.awesomeapi.com.br/json/last/USD-BRL,EUR-BRL?token=927c456f9a4bec44887e5cc0e2d154c8f843f33855ec2ec0d15db596ee7d19cd',
-    fetcher,
-    { refreshInterval: 5000 } // Atualiza a cada 60s //1000 == 1 segundo refresh page
-  );
+export default function Cotacao() {
+  const [startDate, setStartDate] = useState('')
+  const [endDate, setEndDate] = useState('')
+  const [url, setUrl] = useState(null)
 
-  if (error) return <div>Erro ao carregar dados.</div>;
-  if (isLoading || !data) return <div>Carregando...</div>;
+  const { data, error, isLoading } = useSWR(url, fetcher);
 
-  const usdbrl = data.USDBRL;
+  const buscarHistorico = (e) => {
+    e.preventDefault()
+    if (!startDate || !endDate) return alert('Preencha as datas')
+    const start = startDate.replaceAll('-', '')
+    const end = endDate.replaceAll('-', '')
+    setUrl(`https://economia.awesomeapi.com.br/json/daily/USD-BRL/365?start_date=${start}&end_date=${end}`)
+  }
 
   return (
-    <main style={{ padding: '2rem', fontFamily: 'Arial' }}>
-      <h1>Cotação Dólar Hoje (USD/BRL)</h1>
-      <p><strong>Compra:</strong> R$ {usdbrl.bid}</p>
-      <p><strong>Venda:</strong> R$ {usdbrl.ask}</p>
-      <p><strong>Alta:</strong> R$ {usdbrl.high}</p>
-      <p><strong>Baixa:</strong> R$ {usdbrl.low}</p>
-      <p><strong>Variação:</strong> {usdbrl.varBid} ({usdbrl.pctChange}%)</p>
-      <small>Atualizado: {new Date(Number(usdbrl.timestamp) * 1000).toLocaleString()}</small>
+    <main>
+      <h1>Buscar Cotação USD/BRL</h1>
+
+      <form onSubmit={buscarHistorico}>
+        <div>
+          <label htmlFor="startDate">Data Início:</label><br />
+          <input
+            id="startDate"
+            type="date"
+            value={startDate}
+            onChange={e => setStartDate(e.target.value)}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="endDate">Data Fim:</label><br />
+          <input
+            id="endDate"
+            type="date"
+            value={endDate}
+            onChange={e => setEndDate(e.target.value)}
+          />
+        </div>
+
+        <button type="submit">Buscar</button>
+      </form>
+
+      {isLoading && url && <p>Carregando...</p>}
+      {error && <p>Erro ao buscar.</p>}
+
+      {data && data.length > 0 && (
+        <section>
+          <h2>Resultados:</h2>
+          <p><strong>Compra mais recente:</strong> R$ {data[0].bid}</p>
+          <p><strong>Venda mais recente:</strong> R$ {data[0].ask}</p>
+          <p><strong>Data:</strong> {new Date(data[0].timestamp * 1000).toLocaleDateString()}</p>
+          <hr />
+
+          <table>
+            <thead>
+              <tr>
+                <th>Data</th>
+                <th>Compra</th>
+                <th>Venda</th>
+                <th>Alta</th>
+                <th>Baixa</th>
+                <th>Variação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.map(item => (
+                <tr key={item.timestamp}>
+                  <td>{new Date(item.timestamp * 1000).toLocaleDateString()}</td>
+                  <td>{item.bid}</td>
+                  <td>{item.ask}</td>
+                  <td>{item.high}</td>
+                  <td>{item.low}</td>
+                  <td>{item.varBid}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
     </main>
   );
 }
